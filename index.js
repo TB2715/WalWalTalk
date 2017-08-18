@@ -88,6 +88,7 @@ bot.beginDialogAction('setting', '/setting', { matches: /^setting/i });
 // Bots Dialogs
 //=========================================================
 var talk_level = 0;
+var setting = 0;
 var user_name, pet_name, age, weight;
 var s_sleep, s_wait, s_bomb, s_play;
 
@@ -104,7 +105,10 @@ bot.dialog('/', [
     },
     function (session, results) {
         // Display menu
-        session.beginDialog('/setting');
+        if(setting == 0)
+            session.beginDialog('/setting');
+        else
+            session.beginDialog('/state');
     },
     function (session, results) {
         // Always say goodbye
@@ -117,31 +121,33 @@ bot.dialog('/setting', [
       session.send("처음에는 당신과 당신의 반려동물의 정보를 등록할거에요. \n\n이 후에 설정사항을 변경하고 싶으시다면 'setting'을 입력해주세요.");
       builder.Prompts.text(session, "당신의 이름을 등록해주세요.");
     },
-    // function (session, results) {
-    //   //session.send("입력하신 당신의 이름이 '%s'(이)가 맞나요?", results.response);
-    //   user_name = results.response;
-    //   builder.Prompts.text(session, "당신의 반려동물의 이름을 등록해주세요.");
-    // },
-    // function (session, results) {
-    //   pet_name = results.response;
-    //   builder.Prompts.number(session, "당신의 반려동물의 나이를 등록해주세요.");
-    // },
-    // function(session, results){
-    //   age = results.response;
-    //   builder.Prompts.number(session, "당신의 반려동물의 몸무게를 등록해주세요.");
-    // },
-    // function(session, results){
-    //   weight = results.response;
-    //   session.send("입력한 내용입니다.\n\n- 당신의 이름: %s\n\n- 반려동물의 이름: %s\n\n- 반려동물의 나이: %s\n\n- 반려동물의 몸무게: %s", user_name, pet_name, age, weight);
-    //   builder.Prompts.text(session, "입력한 내용이 맞나요? Yes 아니면 No 로 대답해주세요.");
-    // },
+    function (session, results) {
+      //session.send("입력하신 당신의 이름이 '%s'(이)가 맞나요?", results.response);
+      user_name = results.response;
+      builder.Prompts.text(session, "당신의 반려동물의 이름을 등록해주세요.");
+    },
+    function (session, results) {
+      pet_name = results.response;
+      builder.Prompts.number(session, "당신의 반려동물의 나이를 등록해주세요.(단위: 년)");
+    },
+    function(session, results){
+      age = results.response;
+      builder.Prompts.number(session, "당신의 반려동물의 몸무게를 등록해주세요.(단위: kg)");
+    },
+    function(session, results){
+      weight = results.response;
+      session.send("입력한 내용입니다.\n\n- 당신의 이름: %s\n\n- 반려동물의 이름: %s\n\n- 반려동물의 나이: %s살\n\n- 반려동물의 몸무게: %skg", user_name, pet_name, age, weight);
+      builder.Prompts.text(session, "입력한 내용이 맞나요? Yes 아니면 No 로 대답해주세요.");
+    },
     function(session, results){
       var check = results.response;
       session.send("you said %s", check);
       if(check == 'no')
         session.beginDialog('/setting');
-      else
-        session.beginDialog('/menu');
+      else{
+        setting = 1;
+        session.beginDialog('/state');
+      }
     }
 ]);
 
@@ -153,8 +159,8 @@ bot.dialog('/setting', [
 
 
 bot.dialog('/menu', [
-    function (session) {
-        builder.Prompts.text(session, "당신의 반려동물의 어떤 상태가 궁금하신가요?");
+    function(session){
+        builder.Prompts.text(session, "<메뉴>\n\n");
     },
     function (session, results) {
         if (results.response && results.response != '(quit)') {
@@ -180,29 +186,28 @@ bot.dialog('/help', [
 
 bot.dialog('/state', [
     function(session){
+        builder.Prompts.text(session, "당신의 " + pet_name + "(이)의 어떤 상태가 궁금한가요?");
+    },
+    function(session, results){
         connection.query('SELECT * from module', function(err, rows, fields) {
             if(!err){
-                s_sleep = rows[0].sleep;
-                s_wait = rows[0].wait;
-                s_bomb = rows[0].bomb;
-                s_play = rows[0].play;
+                if(rows[0].sleep)
+                    session.send("주인님, 나 잘 자고있어요!(´ε｀*)");
+                if(rows[0].wait)
+                    session.send("주인님, 언제 돌아와요? 기다리고 있어요...(つд⊂)");
+                if(rows[0].bomb)
+                    session.send("주인님, 쓰레기통이 저한테 시비를 걸어요 (ಠ益ಠ)! 혼내줘야겠어요!!");
+                if(rows[0].play)
+                    session.send("주인님, 덕분에 재밋게 놀고있어요! 짱신나요 ~(꒪꒳꒪)~!");
+                if(rows[0].sleep==0 && rows[0].wait==0 && rows[0].bomb==0 && rows[0].play==0)
+                    session.send("뒹굴 뒹굴 뒹구르르르르\n\n(っ´ω｀c)");
             }
             else
                 console.log('Error while performing Query.', err);
         });
-        if(s_sleep)
-            session.send("주인님, 나 잘 자고있어요!");
-        else if(s_play)  
-            session.send("주인님, 언제 돌아와요? 기다리고 있어요..."); 
-        else if(s_wait)
-            session.send("주인님, 쓰레기통이 저한테 시비를 걸어요! 혼내줘야겠어요!!");
-        else if(s_play)
-            session.send("주인님, 덕분에 재밋게 놀고있어요! 짱신나요 /(ㅎㅂㅎ)/!"); 
-        else
-            session.endDialog("주인님, 부르셨어요?");
-        session.beginDialog('/menu');
-
+    },
+    function(session, results){
+        ession.beginDialog("/state");
     }
 ]);
 
-connection.end();
